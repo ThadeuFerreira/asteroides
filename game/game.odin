@@ -3,6 +3,8 @@ package game
 import rl "vendor:raylib"
 import "core:math"
 import "core:math/rand"
+import "core:fmt"
+import "core:strings"
 
 
 Ship :: struct {
@@ -215,9 +217,6 @@ get_player_input :: proc(ship : ^Ship) {
 
 Check_collision :: proc(ship : ^Ship, asteroids : [dynamic]^Asteroid) {
     //bool CheckCollisionPointPoly(Vector2 point, Vector2 *points, int pointCount);                      // Check if point is within a polygon described by array of vertices
-    a_index := 0
-    b_index := 0
- 
     for asteroid in asteroids {
         //ast_shape := make([]rl.Vector2, asteroid.vertices)
         temp_shape := make([]rl.Vector2, asteroid.vertices)
@@ -226,10 +225,10 @@ Check_collision :: proc(ship : ^Ship, asteroids : [dynamic]^Asteroid) {
             temp_shape[i] = asteroid.shape[i] + asteroid.position
         }
 
-        a := raw_data(temp_shape[:])
+        Draw_shape(temp_shape, asteroid.vertices, 0, rl.BLUE) //use for DEBUG
         ship_colision := false
         for i in 0..<3 {
-            if rl.CheckCollisionPointPoly(ship.position + ship.shape[i], a, asteroid.vertices){
+            if CheckCollisionPointPoly(ship.position + ship.shape[i], temp_shape, asteroid.vertices){
                 ship_colision = true
                 break
             }
@@ -238,15 +237,15 @@ Check_collision :: proc(ship : ^Ship, asteroids : [dynamic]^Asteroid) {
             ship.shield -= 10
             asteroid.active = false
         } else {
-            for bullet in ship.bullets {
-                if rl.CheckCollisionPointPoly(bullet.position, a, asteroid.vertices) {
+            for bullet in ship.bullets {     
+                if CheckCollisionPointPoly(bullet.position, temp_shape, asteroid.vertices) {
+                    p :=  fmt.tprintf( "Bullet Position: %v, %v", int(bullet.position.x) ,int(bullet.position.y))
+                    rl.TraceLog(rl.TraceLogLevel.INFO, strings.clone_to_cstring(p))
                     bullet.active = false
                     asteroid.active = false
                 }
-                b_index += 1
             }
         }
-        a_index += 1
     }
 }
 
@@ -258,18 +257,38 @@ Draw_ship :: proc(ship : ^Ship) {
 }
 
 draw_bullet :: proc(bullet : ^Bullet) {
-    rl.DrawCircleV(bullet.position, 2, bullet.color)
+    //rl.DrawCircleV(bullet.position, 2, bullet.color)
+    p :=  fmt.tprintf( "%v, %v", int(bullet.position.x) ,int(bullet.position.y))
+    rl.DrawText(strings.clone_to_cstring(p), i32(bullet.position.x), i32(bullet.position.y), 5, rl.GREEN)
 }
 
-Draw_asteroid :: proc(asteroid : ^Asteroid) {
+Draw_shape :: proc(shape : []rl.Vector2, vertices : i32, position : rl.Vector2, color : rl.Color) {
     //	DrawSplineLinear                 :: proc(points: [^]Vector2, pointCount: c.int, thick: f32, color: Color) --- // Draw spline: Linear, minimum 2 points
-    temp_shape := make([]rl.Vector2, asteroid.vertices)
-    //defer delete(temp_shape)
-    for i in 0..<asteroid.vertices {
-        temp_shape[i] = asteroid.shape[i] + asteroid.position
+    temp_shape := make([]rl.Vector2, vertices)
+    defer delete(temp_shape)
+    
+    for i in 0..<vertices {
+        temp_shape[i] = shape[i] + position
+        vertex_position :=  fmt.tprintf( "%v, %v", int(temp_shape[i].x) ,int(temp_shape[i].y))
+        rl.DrawText(strings.clone_to_cstring(vertex_position), i32(temp_shape[i].x), i32(temp_shape[i].y), 5, color)
     }
-    temp_shape[asteroid.vertices - 1] = asteroid.shape[0] + asteroid.position
+    temp_shape[vertices - 1] = shape[0] + position
     a := raw_data(temp_shape[:])
 
-    rl.DrawSplineLinear(a, asteroid.vertices, 2, asteroid.color)   
+    rl.DrawSplineLinear(a, vertices, 2, color)   
+}
+
+CheckCollisionPointPoly :: proc(point : rl.Vector2, points : []rl.Vector2, pointCount : i32) -> bool {
+    inside := false
+    if pointCount > 2 {
+        j := pointCount - 1
+        for i in 0..<pointCount  {
+            if (points[i].y > point.y) != (points[j].y > point.y) &&
+                (point.x < (points[j].x - points[i].x)*(point.y - points[i].y)/(points[j].y - points[i].y) + points[i].x) {
+                inside = !inside
+            }
+            j = i
+        }
+    }
+    return inside
 }

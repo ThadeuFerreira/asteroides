@@ -35,9 +35,10 @@ main :: proc()
 //    )
 
     ship := game.Make_ship(rl.Vector2{f32(screen_width/2), f32(screen_height/2)}, f32(SHIP_SIZE), rl.WHITE)
-    
+    rl.SetConfigFlags(rl.ConfigFlags{rl.ConfigFlag.WINDOW_TRANSPARENT});
     update_time : f32 = 0
     rl.InitWindow(screen_width, screen_height, "raylib [core] example - basic window");
+    rl.HideCursor()
         
     asteroids := make([dynamic]^game.Asteroid, 0, 100)
     rl.SetTargetFPS(120) // Set our game to run at 60 frames-per-second
@@ -57,7 +58,7 @@ main :: proc()
             append(&asteroids, a)
         }
 
-        st_mouse_pos :=  fmt.tprintf("Mouse Position: %v, %v", mouse_pos.x ,mouse_pos.y)
+        st_mouse_pos :=  fmt.tprintf( "%v, %v", mouse_pos.x ,mouse_pos.y)
         rl.DrawText(strings.clone_to_cstring(st_mouse_pos), i32(mouse_pos.x), i32(mouse_pos.y), 20, rl.WHITE)
         update_time += rl.GetFrameTime()
         if update_time > 0.01{
@@ -65,8 +66,8 @@ main :: proc()
             //game.Update_asteroids(asteroids)
             game.Check_collision(ship, asteroids)
             // Remove inactive asteroids and bullets
-            new_asteroids := make([dynamic]^game.Asteroid, 0, 100)
-            new_bullets := make([dynamic]^game.Bullet, 0, 100)
+            new_asteroids := [dynamic]^game.Asteroid{}
+            new_bullets := [dynamic]^game.Bullet{}
             for asteroid in asteroids {
                 if asteroid.active {
                     append(&new_asteroids, asteroid)
@@ -86,7 +87,7 @@ main :: proc()
         }
         game.Draw_ship(ship)
         for as in asteroids {      
-            game.Draw_asteroid(as)
+            game.Draw_shape(as.shape, as.vertices, as.position, rl.RED)
         }
         rl.EndDrawing()
     }
