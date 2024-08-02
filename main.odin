@@ -34,7 +34,7 @@ main :: proc()
 
     ship := game.Make_ship(rl.Vector2{f32(screen_width/2), f32(screen_height/2)}, f32(SHIP_SIZE), rl.WHITE)
     
-
+    update_time : f32 = 0
     rl.InitWindow(screen_width, screen_height, "raylib [core] example - basic window");
         
     asteroids := make([dynamic]^game.Asteroid, 0, 100)
@@ -54,9 +54,13 @@ main :: proc()
             a := game.Make_asteroid(mouse_pos, 80, 45, rl.RED, 1)
             append(&asteroids, a)
         }
-        game.Update_ship(ship)
+        update_time += rl.GetFrameTime()
+        if update_time > 0.01{
+            game.Update_ship(ship)
+            game.Update_asteroids(asteroids)
+            update_time = 0
+        }
         game.Draw_ship(ship)
-        game.Update_asteroids(asteroids)
         for as in asteroids {      
             game.Draw_asteroid(as)
         }

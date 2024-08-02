@@ -91,12 +91,24 @@ Make_asteroid :: proc(position : rl.Vector2, max_radius : f32, min_radius : f32,
     
     return asteroid
 }
-
+MAX_SPEED : f32 = 10.0
+ship_time : f32 = 0
 Update_ship :: proc(ship : ^Ship) {
+    ship_time += rl.GetFrameTime()
+    if ship_time <= 0.01 {
+        return    
+    }
+    ship_time = 0
     get_player_input(ship)
     
     // Apply acceleration
     ship.velocity += ship.acceleration
+
+    // Limit speed
+    
+    if rl.Vector2Length(ship.velocity) > MAX_SPEED {
+        ship.velocity = rl.Vector2Normalize(ship.velocity)*MAX_SPEED
+    }
     
     // Apply drag (optional, for more realistic movement)
     ship.velocity *= 0.99
@@ -110,16 +122,9 @@ Update_ship :: proc(ship : ^Ship) {
     update_bullets(ship)
 }
 
-rotation_time : f32 = 0
 Update_asteroids :: proc(asteroids : [dynamic]^Asteroid) {
-    
-    rotation_time += rl.GetFrameTime()
-    if rotation_time >= 0.01 {
-        for asteroid in asteroids {
-            update_asteroid(asteroid)
-        }
-        rotation_time = 0
-        
+    for asteroid in asteroids {
+        update_asteroid(asteroid)
     }
 }
 
@@ -160,15 +165,16 @@ rotate_point :: proc(point : rl.Vector2, angle : f32) -> rl.Vector2 {
     }
 }
 
+
 fire_bullet :: proc(ship : ^Ship) {
     bullet := new(Bullet)
     bullet.position = ship.position + ship.shape[0]  // Use the ship's nose as the starting position
-    bullet.velocity = ship.velocity + angle_to_vector(ship.rotation)*10
+    extra_speed := angle_to_vector(ship.rotation)*(MAX_SPEED + 5)
+    bullet.velocity = ship.velocity + extra_speed
     bullet.color = rl.WHITE
     bullet.active = true
     append(&ship.bullets, bullet)
 }
-
 
 update_bullets :: proc(ship : ^Ship) {
     for bullet in ship.bullets {
@@ -191,6 +197,7 @@ get_player_input :: proc(ship : ^Ship) {
         ship.acceleration = angle_to_vector(ship.rotation)* acceleration_magnitude
     } else if rl.IsKeyDown(rl.KeyboardKey.LEFT_CONTROL) || rl.IsKeyDown(rl.KeyboardKey.RIGHT_CONTROL) {
         fire_bullet(ship)
+        ship.acceleration = rl.Vector2{0, 0}
     } else {
         ship.acceleration = rl.Vector2{0, 0}
     }
