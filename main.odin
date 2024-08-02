@@ -37,8 +37,8 @@ main :: proc()
 
     rl.InitWindow(screen_width, screen_height, "raylib [core] example - basic window");
         
-
-    rl.SetTargetFPS(30) // Set our game to run at 60 frames-per-second
+    asteroids := make([dynamic]^game.Asteroid, 0, 100)
+    rl.SetTargetFPS(120) // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
     rl.SetTraceLogLevel(rl.TraceLogLevel.ALL) // Show trace log messages (LOG_INFO, LOG_WARNING, LOG_ERROR, LOG_DEBUG)
     // Main game loop
@@ -50,9 +50,16 @@ main :: proc()
         rl.ClearBackground(rl.BLACK)
         
         mouse_pos := rl.GetMousePosition()
+        if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
+            a := game.Make_asteroid(mouse_pos, 80, 45, rl.RED, 1)
+            append(&asteroids, a)
+        }
         game.Update_ship(ship)
         game.Draw_ship(ship)
-       
+        game.Update_asteroids(asteroids)
+        for as in asteroids {      
+            game.Draw_asteroid(as)
+        }
         rl.EndDrawing()
     }
 

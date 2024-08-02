@@ -2,6 +2,7 @@ package game
 
 import rl "vendor:raylib"
 import "core:math"
+import "core:math/rand"
 
 
 Ship :: struct {
@@ -21,9 +22,14 @@ Asteroid :: struct {
     position : rl.Vector2, //center position
     max_radius : f32,
     min_radius : f32,
+
+    vertices : i32,
     shape : []rl.Vector2,
-    velocity : rl.Vector2,
     color : rl.Color,
+
+    velocity : rl.Vector2,
+    rotation : f32,
+    
     level : i32,
 }
 
@@ -58,6 +64,34 @@ Make_ship :: proc(position : rl.Vector2, size : f32, color : rl.Color) -> ^Ship 
     return ship
 }
 
+Make_asteroid :: proc(position : rl.Vector2, max_radius : f32, min_radius : f32, color : rl.Color, level : i32) -> ^Asteroid {
+    asteroid := new(Asteroid)
+    asteroid.position = position
+    asteroid.max_radius = max_radius
+    asteroid.min_radius = min_radius
+    asteroid.color = color
+    asteroid.level = level
+
+    asteroid.vertices = i32(10 + rand.int_max(8))
+
+    speed := 1 + rand.float32()*2
+
+    asteroid.velocity = rl.Vector2{rand.float32()*2 - 1, rand.float32()*2 - 1}*speed
+
+    asteroid.rotation = rand.float32()*6 -3
+    
+    v := asteroid.vertices
+    // Generate asteroid shape based on radius
+    asteroid.shape = make([]rl.Vector2, v)
+    for i in 0..< v {
+        angle := f32(i)*(360.0/f32(v))
+        radius := min_radius + (max_radius - min_radius)*f32(rand.float32())
+        asteroid.shape[i] = rl.Vector2{radius*math.cos(angle*math.PI/180), radius*math.sin(angle*math.PI/180)}   
+    }
+    
+    return asteroid
+}
+
 Update_ship :: proc(ship : ^Ship) {
     get_player_input(ship)
     
@@ -74,6 +108,27 @@ Update_ship :: proc(ship : ^Ship) {
     update_ship_shape(ship)
     
     update_bullets(ship)
+}
+
+rotation_time : f32 = 0
+Update_asteroids :: proc(asteroids : [dynamic]^Asteroid) {
+    
+    rotation_time += rl.GetFrameTime()
+    if rotation_time >= 0.01 {
+        for asteroid in asteroids {
+            update_asteroid(asteroid)
+        }
+        rotation_time = 0
+        
+    }
+}
+
+update_asteroid :: proc(asteroid : ^Asteroid) {
+    for i in 0..<asteroid.vertices {
+        rotated := rotate_point(asteroid.shape[i], asteroid.rotation )
+        asteroid.shape[i] = rotated
+    }
+    asteroid.position += asteroid.velocity
 }
 
 update_ship_shape :: proc(ship : ^Ship) {
@@ -160,4 +215,17 @@ Draw_ship :: proc(ship : ^Ship) {
 
 draw_bullet :: proc(bullet : ^Bullet) {
     rl.DrawCircleV(bullet.position, 2, bullet.color)
+}
+
+Draw_asteroid :: proc(asteroid : ^Asteroid) {
+    //	DrawSplineLinear                 :: proc(points: [^]Vector2, pointCount: c.int, thick: f32, color: Color) --- // Draw spline: Linear, minimum 2 points
+    temp_shape := make([]rl.Vector2, asteroid.vertices)
+    defer delete(temp_shape)
+    for i in 0..<asteroid.vertices {
+        temp_shape[i] = asteroid.shape[i] + asteroid.position
+    }
+    temp_shape[asteroid.vertices - 1] = asteroid.shape[0] + asteroid.position
+    a := raw_data(temp_shape[:])
+
+    rl.DrawSplineLinear(a, asteroid.vertices, 2, asteroid.color)   
 }
