@@ -30,6 +30,7 @@ Asteroid :: struct {
     velocity : rl.Vector2,
     rotation : f32,
     
+    active : bool,
     level : i32,
 }
 
@@ -89,6 +90,7 @@ Make_asteroid :: proc(position : rl.Vector2, max_radius : f32, min_radius : f32,
         asteroid.shape[i] = rl.Vector2{radius*math.cos(angle*math.PI/180), radius*math.sin(angle*math.PI/180)}   
     }
     
+    asteroid.active = true
     return asteroid
 }
 MAX_SPEED : f32 = 10.0
@@ -208,9 +210,44 @@ get_player_input :: proc(ship : ^Ship) {
     }
     if rl.IsKeyDown(rl.KeyboardKey.RIGHT) || rl.IsKeyDown(rl.KeyboardKey.D) {
         ship.rotation += rotation_speed
+    }    
+}
+
+Check_collision :: proc(ship : ^Ship, asteroids : [dynamic]^Asteroid) {
+    //bool CheckCollisionPointPoly(Vector2 point, Vector2 *points, int pointCount);                      // Check if point is within a polygon described by array of vertices
+    a_index := 0
+    b_index := 0
+ 
+    for asteroid in asteroids {
+        //ast_shape := make([]rl.Vector2, asteroid.vertices)
+        temp_shape := make([]rl.Vector2, asteroid.vertices)
+        defer delete(temp_shape)
+        for i in 0..<asteroid.vertices {
+            temp_shape[i] = asteroid.shape[i] + asteroid.position
+        }
+
+        a := raw_data(temp_shape[:])
+        ship_colision := false
+        for i in 0..<3 {
+            if rl.CheckCollisionPointPoly(ship.position + ship.shape[i], a, asteroid.vertices){
+                ship_colision = true
+                break
+            }
+        }
+        if ship_colision {
+            ship.shield -= 10
+            asteroid.active = false
+        } else {
+            for bullet in ship.bullets {
+                if rl.CheckCollisionPointPoly(bullet.position, a, asteroid.vertices) {
+                    bullet.active = false
+                    asteroid.active = false
+                }
+                b_index += 1
+            }
+        }
+        a_index += 1
     }
-    
-    
 }
 
 Draw_ship :: proc(ship : ^Ship) {
@@ -227,7 +264,7 @@ draw_bullet :: proc(bullet : ^Bullet) {
 Draw_asteroid :: proc(asteroid : ^Asteroid) {
     //	DrawSplineLinear                 :: proc(points: [^]Vector2, pointCount: c.int, thick: f32, color: Color) --- // Draw spline: Linear, minimum 2 points
     temp_shape := make([]rl.Vector2, asteroid.vertices)
-    defer delete(temp_shape)
+    //defer delete(temp_shape)
     for i in 0..<asteroid.vertices {
         temp_shape[i] = asteroid.shape[i] + asteroid.position
     }

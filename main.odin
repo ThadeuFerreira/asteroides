@@ -2,6 +2,8 @@ package main
 
 import rl "vendor:raylib"
 import "core:math"
+import "core:fmt"
+import "core:strings"
 import "/game"
 
 
@@ -54,10 +56,32 @@ main :: proc()
             a := game.Make_asteroid(mouse_pos, 80, 45, rl.RED, 1)
             append(&asteroids, a)
         }
+
+        st_mouse_pos :=  fmt.tprintf("Mouse Position: %v, %v", mouse_pos.x ,mouse_pos.y)
+        rl.DrawText(strings.clone_to_cstring(st_mouse_pos), i32(mouse_pos.x), i32(mouse_pos.y), 20, rl.WHITE)
         update_time += rl.GetFrameTime()
         if update_time > 0.01{
             game.Update_ship(ship)
-            game.Update_asteroids(asteroids)
+            //game.Update_asteroids(asteroids)
+            game.Check_collision(ship, asteroids)
+            // Remove inactive asteroids and bullets
+            new_asteroids := make([dynamic]^game.Asteroid, 0, 100)
+            new_bullets := make([dynamic]^game.Bullet, 0, 100)
+            for asteroid in asteroids {
+                if asteroid.active {
+                    append(&new_asteroids, asteroid)
+                }else{
+                    rl.TraceLog(rl.TraceLogLevel.INFO, "Asteroid destroyed")
+                }
+
+            }
+            for bullet in ship.bullets {
+                if bullet.active {
+                    append(&new_bullets, bullet)
+                }
+            }
+            asteroids = new_asteroids
+            ship.bullets = new_bullets
             update_time = 0
         }
         game.Draw_ship(ship)
