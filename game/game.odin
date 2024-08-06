@@ -107,7 +107,7 @@ Make_asteroid :: proc(position : rl.Vector2, max_radius : f32, min_radius : f32,
     asteroid.velocity = rl.Vector2{rand.float32()*2 - 1, rand.float32()*2 - 1}*speed
     asteroid.acceleration = rl.Vector2{0, 0}
 
-    asteroid.rotation = rand.float32()*6 -3
+    asteroid.rotation = rand.float32()*2 -1
     
     v := asteroid.vertices
     // Generate asteroid shape based on radius
@@ -126,11 +126,9 @@ MAX_FUEL : i32 = 100
 MAX_AMMO : i32 = 1000
 ship_time : f32 = 0
 Update_ship :: proc(ship : ^Ship) {
-    ship_time += rl.GetFrameTime()
-    if ship_time <= 0.01 {
-        return    
-    }
-    ship_time = 0
+    delta_time := rl.GetFrameTime()
+    speed : f32 = 15
+   
     get_player_input(ship)
     
     // Apply acceleration
@@ -146,7 +144,7 @@ Update_ship :: proc(ship : ^Ship) {
     ship.velocity *= 0.99
     
     // Update position
-    ship.position += ship.velocity
+    ship.position += ship.velocity*delta_time*speed
     
     // Update shape based on rotation and position
     update_ship_shape(ship)
@@ -161,11 +159,13 @@ Update_asteroids :: proc(asteroids : [dynamic]^Asteroid, ship : ^Ship) {
 }
 
 update_asteroid :: proc(asteroid : ^Asteroid, ship: ^Ship) {
+    delta_time := rl.GetFrameTime()
+    speed : f32 = 1
     for i in 0..<asteroid.vertices {
-        rotated := rotate_point(asteroid.shape[i], asteroid.rotation )
+        rotated := rotate_point(asteroid.shape[i], asteroid.rotation, speed, delta_time)
         asteroid.shape[i] = rotated
     }
-    asteroid.position += asteroid.velocity
+    asteroid.position += asteroid.velocity*delta_time*speed
     asteroid.acceleration = rl.Vector2Normalize(asteroid.position - ship.position)*0.01
     asteroid.velocity -= asteroid.acceleration
     if rl.Vector2Length(asteroid.velocity) > MAX_SPEED {
@@ -174,6 +174,7 @@ update_asteroid :: proc(asteroid : ^Asteroid, ship: ^Ship) {
 }
 
 update_ship_shape :: proc(ship : ^Ship) {
+    delta_time := rl.GetFrameTime()
     if ship.position.x > ship.play_width {
         ship.position.x = 0
     }
@@ -187,7 +188,7 @@ update_ship_shape :: proc(ship : ^Ship) {
         ship.position.y = ship.play_height
     }
     for i in 0..<3 {
-        rotated := rotate_point(ship.base_shape[i], ship.rotation)
+        rotated := rotate_point(ship.base_shape[i], ship.rotation, 4, delta_time)
         ship.shape[i] = rotated
     }
     //clamp ammo and fuel
@@ -195,8 +196,8 @@ update_ship_shape :: proc(ship : ^Ship) {
     ship.fuel = math.clamp(ship.fuel, 0, MAX_FUEL)
 }
 
-rotate_point :: proc(point : rl.Vector2, angle : f32) -> rl.Vector2 {
-    rad := angle*math.PI/180
+rotate_point :: proc(point : rl.Vector2, angle, ang_speed, delta_time : f32) -> rl.Vector2 {
+    rad := (angle + delta_time*ang_speed)*math.PI/180
     cos_rot := math.cos(rad)
     sin_rot := math.sin(rad)
     return rl.Vector2{
@@ -217,9 +218,11 @@ fire_bullet :: proc(ship : ^Ship) {
 }
 
 update_bullets :: proc(ship : ^Ship) {
+    delta_time := rl.GetFrameTime()
+    speed : f32 = 20
     for bullet in ship.bullets {
         if bullet.active {
-            bullet.position = bullet.position + bullet.velocity
+            bullet.position = bullet.position + bullet.velocity*speed*delta_time
         }
     }
 }

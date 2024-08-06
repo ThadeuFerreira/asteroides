@@ -28,7 +28,7 @@ main :: proc()
     ship_position := rl.Vector2{play_width/2, f32(screen_height/2)}
     ship := game.Make_ship(ship_position, f32(SHIP_SIZE), play_width, f32(screen_height), rl.WHITE)
     rl.SetConfigFlags(rl.ConfigFlags{rl.ConfigFlag.WINDOW_TRANSPARENT});
-    update_time : f32 = 0
+
     rl.InitWindow(screen_width, screen_height, "raylib [core] example - basic window");
     rl.HideCursor()
         
@@ -54,32 +54,30 @@ main :: proc()
 
         st_mouse_pos :=  fmt.tprintf( "%v, %v", mouse_pos.x ,mouse_pos.y)
         rl.DrawText(strings.clone_to_cstring(st_mouse_pos), i32(mouse_pos.x), i32(mouse_pos.y), 20, rl.WHITE)
-        update_time += rl.GetFrameTime()
-        if update_time > 0.01{
-            game.Update_ship(ship)
-            game.Update_asteroids(asteroids, ship)
-            game.Check_collision(ship, asteroids)
-            // Remove inactive asteroids and bullets
-            new_asteroids := [dynamic]^game.Asteroid{}
-            new_bullets := [dynamic]^game.Bullet{}
-            for asteroid in asteroids {
-                if asteroid.active {
-                    append(&new_asteroids, asteroid)
-                }else{
-                    game.Destroy_asteroid(asteroid, &new_asteroids)
-                    score.score += 10
-                }
+        
+        game.Update_ship(ship)
+        game.Update_asteroids(asteroids, ship)
+        game.Check_collision(ship, asteroids)
+        // Remove inactive asteroids and bullets
+        new_asteroids := [dynamic]^game.Asteroid{}
+        new_bullets := [dynamic]^game.Bullet{}
+        for asteroid in asteroids {
+            if asteroid.active {
+                append(&new_asteroids, asteroid)
+            }else{
+                game.Destroy_asteroid(asteroid, &new_asteroids)
+                score.score += 10
+            }
 
-            }
-            for bullet in ship.bullets {
-                if bullet.active {
-                    append(&new_bullets, bullet)
-                }
-            }
-            asteroids = new_asteroids
-            ship.bullets = new_bullets
-            update_time = 0
         }
+        for bullet in ship.bullets {
+            if bullet.active {
+                append(&new_bullets, bullet)
+            }
+        }
+        asteroids = new_asteroids
+        ship.bullets = new_bullets
+    
         game.Draw_ship(ship)
         for as in asteroids {      
             game.Draw_shape(as.shape, as.vertices, as.position, rl.RED)
