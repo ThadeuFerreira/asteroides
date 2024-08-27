@@ -2,6 +2,7 @@ package main
 
 import rl "vendor:raylib"
 import "core:math"
+import "core:mem"
 import "core:fmt"
 import "core:strings"
 import "/game"
@@ -25,6 +26,44 @@ main :: proc()
 {
     // Initialization
     //--------------------------------------------------------------------------------------
+
+    track: mem.Tracking_Allocator
+    mem.tracking_allocator_init(&track, context.allocator)
+    context.allocator = mem.tracking_allocator(&track)
+
+    temp_track: mem.Tracking_Allocator
+    mem.tracking_allocator_init(&temp_track, context.temp_allocator)
+    context.temp_allocator = mem.tracking_allocator(&temp_track)
+
+    defer {
+        if len(temp_track.allocation_map) > 0 {
+            fmt.eprintf("=== %v allocations not freed: ===\n", len(temp_track.allocation_map))
+            for _, entry in temp_track.allocation_map {
+                fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
+            }
+        }
+        if len(temp_track.bad_free_array) > 0 {
+            fmt.eprintf("=== %v incorrect frees: ===\n", len(temp_track.bad_free_array))
+            for entry in temp_track.bad_free_array {
+                fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
+            }
+        }
+        mem.tracking_allocator_destroy(&temp_track)
+
+        if len(track.allocation_map) > 0 {
+            fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
+            for _, entry in track.allocation_map {
+                fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
+            }
+        }
+        if len(track.bad_free_array) > 0 {
+            fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
+            for entry in track.bad_free_array {
+                fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
+            }
+        }
+        mem.tracking_allocator_destroy(&track)
+    }
     ship_position := rl.Vector2{play_width/2, f32(screen_height/2)}
     ship := game.Make_ship(ship_position, f32(SHIP_SIZE), play_width, f32(screen_height), rl.WHITE)
     rl.SetConfigFlags(rl.ConfigFlags{rl.ConfigFlag.WINDOW_TRANSPARENT});
@@ -52,8 +91,8 @@ main :: proc()
             append(&asteroids, a)
         }
 
-        st_mouse_pos :=  fmt.tprintf( "%v, %v", mouse_pos.x ,mouse_pos.y)
-        rl.DrawText(strings.clone_to_cstring(st_mouse_pos), i32(mouse_pos.x), i32(mouse_pos.y), 20, rl.WHITE)
+        st_mouse_pos :=  rl.TextFormat( "%v, %v", mouse_pos.x ,mouse_pos.y)
+        rl.DrawText(st_mouse_pos, i32(mouse_pos.x), i32(mouse_pos.y), 20, rl.WHITE)
         
         game.Update_ship(ship)
         game.Update_asteroids(asteroids, ship)
@@ -68,14 +107,15 @@ main :: proc()
                 game.Destroy_asteroid(asteroid, &new_asteroids)
                 score.score += 10
             }
-
         }
         for bullet in ship.bullets {
             if bullet.active {
                 append(&new_bullets, bullet)
             }
         }
+        delete(asteroids)
         asteroids = new_asteroids
+        delete(ship.bullets)
         ship.bullets = new_bullets
     
         game.Draw_ship(ship)
@@ -85,7 +125,19 @@ main :: proc()
         game.Update_score(score, ship, asteroids)
         game.Draw_score(score)
         rl.EndDrawing()
+        free_all(context.temp_allocator)
     }
-
+    // De-Initialization
+    for bullet in ship.bullets {
+        free(bullet)
+    }
+    delete(ship.bullets)
+    for asteroid in asteroids {
+        delete(asteroid.shape)
+        free(asteroid)
+    }
+    delete(asteroids)
+    free(ship)
+    free(score)
     rl.CloseWindow()
 }

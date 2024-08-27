@@ -220,11 +220,26 @@ fire_bullet :: proc(ship : ^Ship) {
 update_bullets :: proc(ship : ^Ship) {
     delta_time := rl.GetFrameTime()
     speed : f32 = 20
+    ship_position := ship.position
     for bullet in ship.bullets {
         if bullet.active {
             bullet.position = bullet.position + bullet.velocity*speed*delta_time
+            distance := rl.Vector2Distance(bullet.position, ship_position)
+            if distance > 1000 {
+                bullet.active = false
+            }
         }
     }
+
+    // new_bullets := [dynamic]^Bullet{}
+    for bullet in ship.bullets {
+        if !bullet.active {
+            free(bullet)
+        }
+    }
+    // delete(ship.bullets)
+    // ship.bullets = new_bullets
+    
 }
 
 angle_to_vector :: proc(angle : f32) -> rl.Vector2 {
@@ -300,9 +315,11 @@ Destroy_asteroid :: proc(asteroid : ^Asteroid, asteroids : ^[dynamic]^Asteroid) 
 
             new_position = position - dir*radius
             new_asteroid = Make_asteroid(new_position, asteroid.max_radius/2, asteroid.min_radius/2, asteroid.color, asteroid.level - 1)
-            append(asteroids, new_asteroid)
-        
+            append(asteroids, new_asteroid)     
     }
+
+    delete(asteroid.shape)
+    
 }
 
 Draw_ship :: proc(ship : ^Ship) {
@@ -370,11 +387,11 @@ Update_score :: proc(score : ^Score, ship : ^Ship, asteroids : [dynamic]^Asteroi
 
 Draw_score :: proc(score : ^Score) {
     rl.DrawRectangleRec(score.background, score.background_color)
-    rl.DrawText(strings.clone_to_cstring(fmt.tprintf("Score: %v", score.score)), i32(score.background.x + 10), i32(score.background.y + 10), 20, rl.WHITE)
-    rl.DrawText(strings.clone_to_cstring(fmt.tprintf("High Score: %v", score.high_score)), i32(score.background.x + 10), i32(score.background.y + 30), 20, rl.WHITE)
-    rl.DrawText(strings.clone_to_cstring(fmt.tprintf("Level: %v", score.level)), i32(score.background.x + 10), i32(score.background.y + 50), 20, rl.WHITE)
-    rl.DrawText(strings.clone_to_cstring(fmt.tprintf("Asteroids: %v", score.number_of_asteroids)), i32(score.background.x + 10), i32(score.background.y + 70), 20, rl.WHITE)
-    rl.DrawText(strings.clone_to_cstring(fmt.tprintf("Shield: %v", score.shield)), i32(score.background.x + 10), i32(score.background.y + 90), 20, rl.WHITE)
-    rl.DrawText(strings.clone_to_cstring(fmt.tprintf("Fuel: %v", score.fuel)), i32(score.background.x + 10), i32(score.background.y + 110), 20, rl.WHITE)
-    rl.DrawText(strings.clone_to_cstring(fmt.tprintf("Ammo: %v", score.ammo)), i32(score.background.x + 10), i32(score.background.y + 130), 20, rl.WHITE)
+    rl.DrawText(rl.TextFormat("Score: %v", score.score), i32(score.background.x + 10), i32(score.background.y + 10), 20, rl.WHITE)
+    rl.DrawText(rl.TextFormat("High Score: %v", score.high_score), i32(score.background.x + 10), i32(score.background.y + 30), 20, rl.WHITE)
+    rl.DrawText(rl.TextFormat("Level: %v", score.level), i32(score.background.x + 10), i32(score.background.y + 50), 20, rl.WHITE)
+    rl.DrawText(rl.TextFormat("Asteroids: %v", score.number_of_asteroids), i32(score.background.x + 10), i32(score.background.y + 70), 20, rl.WHITE)
+    rl.DrawText(rl.TextFormat("Shield: %v", score.shield), i32(score.background.x + 10), i32(score.background.y + 90), 20, rl.WHITE)
+    rl.DrawText(rl.TextFormat("Fuel: %v", score.fuel), i32(score.background.x + 10), i32(score.background.y + 110), 20, rl.WHITE)
+    rl.DrawText(rl.TextFormat("Ammo: %v", score.ammo), i32(score.background.x + 10), i32(score.background.y + 130), 20, rl.WHITE)
 }
