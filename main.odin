@@ -77,6 +77,11 @@ main :: proc()
     rl.SetTargetFPS(120) // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
     rl.SetTraceLogLevel(rl.TraceLogLevel.ALL) // Show trace log messages (LOG_INFO, LOG_WARNING, LOG_ERROR, LOG_DEBUG)
+    showMessageBox := false
+    toggle := false
+    spawn_timer : f32 = 0.0
+    game_over := false
+    game_state := game.Game_state{ship, &asteroids, score, showMessageBox, toggle, i32(play_width), screen_height, game_over}
     // Main game loop
     for !rl.WindowShouldClose()    // Detect window close button or ESC key
     {
@@ -86,9 +91,15 @@ main :: proc()
         rl.ClearBackground(rl.BLACK)
         
         mouse_pos := rl.GetMousePosition()
-        if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
-            a := game.Make_asteroid(mouse_pos, 120, 60, rl.RED, 3)
-            append(&asteroids, a)
+        // if rl.IsMouseButtonPressed(rl.MouseButton.LEFT) {
+        //     a := game.Make_asteroid(mouse_pos, 120, 60, rl.RED, 3)
+        //     append(&asteroids, a)
+        // }
+        spawn_timer += rl.GetFrameTime()
+        if spawn_timer > 1 {
+            game.Spaw_asteroid(&game_state)
+            spawn_timer = 0
+            rl.TraceLog(rl.TraceLogLevel.INFO, "Number of asteroids: %d", len(asteroids))
         }
 
         st_mouse_pos :=  rl.TextFormat( "%v, %v", mouse_pos.x ,mouse_pos.y)

@@ -63,6 +63,17 @@ Bullet :: struct {
     active : bool,
 }
 
+Game_state :: struct {
+    ship : ^Ship,
+    asteroids : ^[dynamic]^Asteroid,
+    score : ^Score,
+    showMessageBox : bool,
+    toggle : bool,
+    screen_width : i32,
+    screen_height : i32,
+    game_over : bool,
+}
+
 Make_ship :: proc(position : rl.Vector2, size : f32, play_width, play_height :f32,color : rl.Color) -> ^Ship {
     ship := new(Ship)
     ship.position = position
@@ -121,7 +132,7 @@ Make_asteroid :: proc(position : rl.Vector2, max_radius : f32, min_radius : f32,
     asteroid.active = true
     return asteroid
 }
-MAX_SPEED : f32 = 10.0
+MAX_SPEED : f32 = 20.0
 MAX_FUEL : i32 = 100
 MAX_AMMO : i32 = 1000
 ship_time : f32 = 0
@@ -141,7 +152,7 @@ Update_ship :: proc(ship : ^Ship) {
     }
     
     // Apply drag (optional, for more realistic movement)
-    ship.velocity *= 0.99
+    ship.velocity *= 0.995
     
     // Update position
     ship.position += ship.velocity*delta_time*speed
@@ -166,7 +177,7 @@ update_asteroid :: proc(asteroid : ^Asteroid, ship: ^Ship) {
         asteroid.shape[i] = rotated
     }
     asteroid.position += asteroid.velocity*delta_time*speed
-    asteroid.acceleration = rl.Vector2Normalize(asteroid.position - ship.position)*0.01
+    asteroid.acceleration = rl.Vector2Normalize(asteroid.position - ship.position)*0.1
     asteroid.velocity -= asteroid.acceleration
     if rl.Vector2Length(asteroid.velocity) > MAX_SPEED {
         asteroid.velocity = rl.Vector2Normalize(asteroid.velocity)*MAX_SPEED
@@ -251,7 +262,7 @@ angle_to_vector :: proc(angle : f32) -> rl.Vector2 {
 get_player_input :: proc(ship : ^Ship) {
     if rl.IsKeyDown(rl.KeyboardKey.SPACE) && !rl.IsKeyDown(rl.KeyboardKey.LEFT_CONTROL) && !rl.IsKeyDown(rl.KeyboardKey.RIGHT_CONTROL) {
         // Calculate acceleration based on ship's current rotation
-        acceleration_magnitude : f32 = 0.5
+        acceleration_magnitude : f32 = 0.6
         ship.acceleration = angle_to_vector(ship.rotation)* acceleration_magnitude
         ship.fuel -= 1
     } else if rl.IsKeyDown(rl.KeyboardKey.LEFT_CONTROL) || rl.IsKeyDown(rl.KeyboardKey.RIGHT_CONTROL) {
@@ -300,6 +311,21 @@ Check_collision :: proc(ship : ^Ship, asteroids : [dynamic]^Asteroid) {
             }
         }
     }
+}
+
+Spaw_asteroid :: proc(gs : ^Game_state) {
+    max_radius := f32(gs.screen_width)/2 + 200
+    min_radius := f32(gs.screen_width)/2 + 100
+
+    r := math.sqrt(min_radius*min_radius + (max_radius*max_radius - min_radius*min_radius)*rand.float32())
+    theta := rand.float32()*2*math.PI
+    x := f32(gs.screen_width)/2 + r*math.cos(theta)
+    y := f32(gs.screen_height)/2 + r*math.sin(theta)
+    asteroid_position := rl.Vector2{x, y}
+
+    asteroid := Make_asteroid(asteroid_position, 120, 60, rl.RED, 3)
+    append(gs.asteroids, asteroid)
+    rl.TraceLog(rl.TraceLogLevel.INFO, "Asteroid spawned at %f, %f", asteroid_position.x, asteroid_position.y)
 }
 
 Destroy_asteroid :: proc(asteroid : ^Asteroid, asteroids : ^[dynamic]^Asteroid) {
@@ -394,4 +420,50 @@ Draw_score :: proc(score : ^Score) {
     rl.DrawText(rl.TextFormat("Shield: %v", score.shield), i32(score.background.x + 10), i32(score.background.y + 90), 20, rl.WHITE)
     rl.DrawText(rl.TextFormat("Fuel: %v", score.fuel), i32(score.background.x + 10), i32(score.background.y + 110), 20, rl.WHITE)
     rl.DrawText(rl.TextFormat("Ammo: %v", score.ammo), i32(score.background.x + 10), i32(score.background.y + 130), 20, rl.WHITE)
+}
+
+Reset_Game :: proc(gs : ^Game_state) {
+    gs.score.score = 0
+    gs.score.level = 1
+    gs.score.number_of_asteroids = 0
+    gs.score.shield = 100
+    gs.score.fuel = 100
+    gs.score.ammo = 1000
+    gs.showMessageBox = false
+    gs.toggle = false
+    
+    gs.ship.position = rl.Vector2{f32(gs.screen_width)/2, f32(gs.screen_height/2)}
+    gs.ship.velocity = rl.Vector2{0, 0}
+    gs.ship.acceleration = rl.Vector2{0, 0}
+    gs.ship.rotation = 0
+    gs.ship.shield = 100
+    gs.ship.fuel = 100
+    gs.ship.ammo = 1000
+    gs.ship.bullets = make([dynamic]^Bullet, 0, 1000)
+    delete(gs.asteroids^)
+    //gs.asteroids = make(^[dynamic]^Asteroid, 0, 100)
+
+}
+
+Draw_GUI :: proc(gs : ^Game_state) {
+    // if rl.GuiButton((rl.Rectangle){ f32(gs.screen_width -120), 24, 120, 30 }, "#191#Show Message"){
+    //     showMessageBox = true
+    // }   
+    // rl.GuiCheckBox((rl.Rectangle){ f32(screen_width -120), 64, 120, 30 }, "#192#Toggle", &toggle)
+    
+    // // rl.GuiSlider((rl.Rectangle){ f32(screen_width -120), 104, 120, 30 }, "10", "200", &query_distance, 10, 200)
+    // if (showMessageBox)
+    // {
+    //     result := rl.GuiMessageBox((rl.Rectangle){ 85, 70, 250, 100 },
+    //         "#191#Message Box", "Hi! This is a message!", "Nice;Cool")
+
+    //     if result >= 0 {
+    //         showMessageBox = false
+    //     }
+    // }
+}
+
+Draw_gameover :: proc(gs : ^Game_state) {
+    rl.DrawText("Game Over", gs.screen_width/2 - 100, gs.screen_height/2, 40, rl.RED)
+    rl.DrawText("Press R to restart", gs.screen_width/2 - 100, gs.screen_height/2 + 40, 20, rl.RED)
 }
